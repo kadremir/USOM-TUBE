@@ -177,7 +177,7 @@ def usom_veri_cek():
 
 def youtube_veri_cek():
     """YouTube'dan güvenlik videolarını çeker"""
-    api_key = "AIzaSyDBazr6iJ84ky5-r9MQ1fXnKmOE7OvM6gA"
+    api_key = "YOUR_API_KEY"
     youtube = build('youtube', 'v3', developerKey=api_key)
     
     print("\nYouTube'da aranacak güvenlik konularını giriniz.")
