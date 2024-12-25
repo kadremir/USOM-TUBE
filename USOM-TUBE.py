@@ -20,6 +20,7 @@ nltk.download('stopwords')
 rcParams['font.family'] = 'Noto Sans Devanagari'  # Yazı tipini ayarlayın
 
 # Ekstra gereksiz kelimeler listesi
+# Ekstra gereksiz kelimeler listesi
 non_stop_words_combined = [
     "yok", "bir", "ve", "ile", "bu", "da", "de", "için", "olarak", "gibi", 
     "şu", "ama", "sadece", "bunu", "şey", "kadar", "her", "çok", "daha", 
@@ -60,9 +61,10 @@ non_stop_words_combined = [
     "dell", "siber", "scam", "fraud", "index", "cyber", "electric", "protect",
     "mit", "vmware", "ibm", "adobe", "fortinet", "apache", "cisco", "linux",
     "hacking", "hackers", "security", "engineering", "wordpress", "comptia",
-    "phishing", "ngobrol", "ngobrol", "ngobrol" ,"güncellemesi", "eklenti", "bildirmi" , "watch", "güvenlik"
+    "phishing", "ngobrol", "ngobrol", "ngobrol", "güncellemesi", "eklenti", "bildirmi",
+    "watch", "güvenlik", "autocad", "instagram", "tenda", "microsoft", "gitlab",
+    "funny", "animated", "videos", "courses", "training"
 ]
-
 def tarih_formatlayici(tarih_str):
     """Farklı formatlardaki tarihleri YYYY-MM-DD formatına çevirir"""
     try:
@@ -79,7 +81,7 @@ def tarih_formatlayici(tarih_str):
         return None
 
 def usom_veri_cek():
-    #Veri Çekme API : https://www.usom.gov.tr/api/incident/index?language=tr&url=https%3A%2F%2Fwww.usom.gov.tr%2Fbildirim
+    # Veri Çekme API: https://www.usom.gov.tr/api/incident/index?language=tr&url=https%3A%2F%2Fwww.usom.gov.tr%2Fbildirim
     """USOM verilerini API üzerinden çeker"""
     print("\n============= USOM API Veri Çekme Aracı =============")
     
@@ -122,7 +124,9 @@ def usom_veri_cek():
                 "page": page,
                 "date_gte": baslangic_tarihi,
                 "date_lte": bitis_tarihi,
-                "language": "tr"
+                "language": "tr",
+                "url": "https://www.usom.gov.tr/bildirim",  # Eklenen URL parametresi
+                "address": "https://www.usom.gov.tr/adres"  # Eklenen adres parametresi
             }
             
             response = requests.get(api_base, params=params)
@@ -177,7 +181,7 @@ def usom_veri_cek():
 
 def youtube_veri_cek():
     """YouTube'dan güvenlik videolarını çeker"""
-    api_key = "YOUR_API_KEY"
+    api_key = "AIzaSyDBazr6iJ84ky5-r9MQ1fXnKmOE7OvM6gA"
     youtube = build('youtube', 'v3', developerKey=api_key)
     
     print("\nYouTube'da aranacak güvenlik konularını giriniz.")
@@ -214,6 +218,9 @@ def youtube_veri_cek():
         except Exception as e:
             print(f"YouTube verisi çekilirken hata: {e}")
             continue
+    
+    if not tum_videolar:
+        print("YouTube verisi çekilemedi!")
     
     return pd.DataFrame(tum_videolar)
 
