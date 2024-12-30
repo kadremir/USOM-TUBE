@@ -1,13 +1,192 @@
-English Explanation
+# Security Analysis Tool - Complete Documentation
+# Güvenlik Analizi Aracı - Kapsamlı Dokümantasyon
 
-This code is designed to perform text analysis by filtering out non-stop words from a given text. It utilizes natural language processing (NLP) techniques to enhance the quality of the analysis. The main purpose of this code is to allow users to focus on significant words in the text, thereby improving the effectiveness of their analyses.
-The code can be applied to data sourced from both YouTube and USOM (National Cyber Incident Response Center). By combining data from these two sources, users can analyze viewer sentiments and trends from YouTube comments alongside cybersecurity-related information from USOM reports. This integration allows for a more comprehensive understanding of public sentiment and cybersecurity issues.
-Additionally, the project includes visualization features that allow users to represent the analysis results graphically. This can involve creating bar charts or word clouds to display the frequency of significant words, making it easier for users to interpret the data and draw conclusions. These visualizations help in understanding patterns and trends in the text, providing a more comprehensive view of the analyzed content.
+## English
 
+### 1. Overview
+This tool is designed to analyze security trends by combining data from two sources:
+- USOM (National Computer Emergency Response Team of Türkiye)
+- Security-related YouTube content
 
+The tool creates visualizations and identifies correlations between official security incidents and public discussions.
 
-Türkçe Açıklama
+### 2. Prerequisites
+```python
+# Required Libraries
+pandas
+networkx
+wordcloud
+matplotlib
+youtube_transcript_api
+google-api-python-client
+requests
+nltk
+ollama
+tqdm
+```
 
-Bu kod, verilen bir metinden durak kelimeleri filtreleyerek metin analizi yapmayı amaçlamaktadır. Doğal dil işleme (NLP) tekniklerini kullanarak analiz kalitesini artırır. Bu kodun ana amacı, kullanıcıların metindeki önemli kelimelere odaklanmalarını sağlamak ve böylece analizlerinin etkinliğini artırmaktır.
-Kod, hem YouTube'dan hem de USOM (Ulusal Siber Olaylara Müdahale Merkezi) verilerinden alınan verilere uygulanabilir. Bu iki kaynaktan gelen verileri birleştirerek, kullanıcıların YouTube yorumlarındaki izleyici duygularını ve eğilimlerini, USOM raporlarındaki siber güvenlik ile ilgili bilgilerle birlikte analiz etmelerine olanak tanır. Bu entegrasyon, kamu duyarlılığı ve siber güvenlik sorunları hakkında daha kapsamlı bir anlayış sağlar.
-Ayrıca, proje, kullanıcıların analiz sonuçlarını grafiksel olarak temsil etmelerine olanak tanıyan görselleştirme özelliklerini de içermektedir. Bu, önemli kelimelerin sıklığını göstermek için çubuk grafikler veya kelime bulutları oluşturmayı içerebilir ve kullanıcıların verileri yorumlamasını ve sonuçlar çıkarmasını kolaylaştırır. Bu görselleştirmeler, metindeki kalıpları ve eğilimleri anlamaya yardımcı olarak, analiz edilen içeriğin daha kapsamlı bir görünümünü sağlar.
+### 3. Key Components
+
+#### 3.1 Data Collection
+1. **USOM Data Collection (`usom_veri_cek`)**
+   - Fetches vulnerability data from USOM API
+   - Requires date range input
+   - Handles pagination automatically
+   - Collects: titles, descriptions, dates, categories, severity levels
+
+2. **YouTube Data Collection (`youtube_veri_cek`)**
+   - Requires YouTube API key
+   - Collects security-related videos
+   - Extracts: titles, descriptions, transcripts
+   - Filters out short videos (<60 seconds)
+   - Supports both Turkish and English transcripts
+
+#### 3.2 Data Processing
+1. **Text Cleaning (`metin_temizle`)**
+   - Removes stopwords in both Turkish and English
+   - Performs basic text normalization
+   - Filters short words
+
+2. **Data Analysis (`veri_analiz`)**
+   - Processes both USOM and YouTube data
+   - Creates word lists for analysis
+   - Handles missing data gracefully
+
+#### 3.3 Visualization (`gorselleştir`)
+- Creates word clouds showing frequency of terms
+- Generates relationship networks between terms
+- Saves visualizations as PNG files
+- Uses matplotlib for rendering
+
+### 4. Usage Instructions
+
+1. **Initial Setup**
+```bash
+# Install required libraries
+pip install -r requirements.txt
+
+# Download NLTK data
+python -m nltk.downloader punkt stopwords
+```
+
+2. **Running the Tool**
+```bash
+python security_analysis.py
+```
+
+3. **Input Requirements**
+- USOM date range (YYYY-MM-DD format)
+- YouTube search queries
+- Maximum number of videos to analyze
+
+4. **Output Files**
+- Word cloud visualizations
+- Network graphs
+- CSV files with raw data
+- Timestamp-based file naming
+
+## Türkçe
+
+### 1. Genel Bakış
+Bu araç, iki kaynaktan gelen verileri birleştirerek güvenlik trendlerini analiz eder:
+- USOM (Ulusal Siber Olaylara Müdahale Merkezi)
+- Güvenlikle ilgili YouTube içeriği
+
+Araç, resmi güvenlik olayları ile kamuoyu tartışmaları arasındaki korelasyonları tespit eder ve görselleştirir.
+
+### 2. Ön Gereksinimler
+```python
+# Gerekli Kütüphaneler
+pandas
+networkx
+wordcloud
+matplotlib
+youtube_transcript_api
+google-api-python-client
+requests
+nltk
+ollama
+tqdm
+```
+
+### 3. Temel Bileşenler
+
+#### 3.1 Veri Toplama
+1. **USOM Veri Toplama (`usom_veri_cek`)**
+   - USOM API'sinden zafiyet verilerini çeker
+   - Tarih aralığı girişi gerektirir
+   - Sayfalamayı otomatik yönetir
+   - Topladığı veriler: başlıklar, açıklamalar, tarihler, kategoriler, seviyeler
+
+2. **YouTube Veri Toplama (`youtube_veri_cek`)**
+   - YouTube API anahtarı gerektirir
+   - Güvenlikle ilgili videoları toplar
+   - Çıkarılan veriler: başlıklar, açıklamalar, transkriptler
+   - Kısa videoları filtreler (<60 saniye)
+   - Türkçe ve İngilizce transkriptleri destekler
+
+#### 3.2 Veri İşleme
+1. **Metin Temizleme (`metin_temizle`)**
+   - Türkçe ve İngilizce gereksiz kelimeleri temizler
+   - Temel metin normalizasyonu yapar
+   - Kısa kelimeleri filtreler
+
+2. **Veri Analizi (`veri_analiz`)**
+   - USOM ve YouTube verilerini işler
+   - Analiz için kelime listeleri oluşturur
+   - Eksik verileri uygun şekilde yönetir
+
+#### 3.3 Görselleştirme (`gorselleştir`)
+- Terimlerin sıklığını gösteren kelime bulutları oluşturur
+- Terimler arası ilişki ağları oluşturur
+- Görselleştirmeleri PNG dosyaları olarak kaydeder
+- Görüntüleme için matplotlib kullanır
+
+### 4. Kullanım Talimatları
+
+1. **İlk Kurulum**
+```bash
+# Gerekli kütüphaneleri kur
+pip install -r requirements.txt
+
+# NLTK verilerini indir
+python -m nltk.downloader punkt stopwords
+```
+
+2. **Aracı Çalıştırma**
+```bash
+python security_analysis.py
+```
+
+3. **Girdi Gereksinimleri**
+- USOM tarih aralığı (YYYY-MM-DD formatında)
+- YouTube arama sorguları
+- Analiz edilecek maksimum video sayısı
+
+4. **Çıktı Dosyaları**
+- Kelime bulutu görselleştirmeleri
+- Ağ grafikleri
+- Ham veri içeren CSV dosyaları
+- Zaman damgalı dosya isimlendirme
+
+### 5. Örnek Kullanım
+
+```bash
+# Program başlatıldığında:
+USOM verileri çekiliyor...
+Başlangıç tarihini girin: 2024-01-01
+Bitiş tarihini girin: 2024-01-31
+
+YouTube'da aranacak güvenlik konularını giriniz.
+Sorgu giriniz: siber güvenlik
+Sorgu giriniz: veri sızıntısı
+Sorgu giriniz: (Enter tuşuna basarak bitirin)
+
+Çekilecek maksimum video sayısını girin: 10
+```
+
+### 6. Hata Yönetimi
+- Geçersiz tarih formatları için kullanıcıya uyarı
+- API bağlantı hataları için geri bildirim
+- Eksik veya hatalı veriler için uygun işleme
+- Program çökmesini engelleyen try-except blokları
