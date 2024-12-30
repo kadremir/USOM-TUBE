@@ -2,73 +2,30 @@ import pandas as pd
 import networkx as nx
 from wordcloud import WordCloud
 import matplotlib.pyplot as plt
-from matplotlib import rcParams  # Yazı tipi ayarları için eklenmiştir
+from matplotlib import rcParams
+from youtube_transcript_api import YouTubeTranscriptApi, TranscriptsDisabled, NoTranscriptFound
 from googleapiclient.discovery import build
 import requests
 import re
 from collections import Counter
 import nltk
+import ollama
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
 from datetime import datetime
+from tqdm import tqdm
+
+# Devanagari karakterlerini destekleyen bir yazı tipi ayarlayın
+rcParams['font.family'] = 'Noto Sans Devanagari'
 
 # NLTK verilerini indir
 nltk.download('punkt')
 nltk.download('stopwords')
 
-# Devanagari karakterlerini destekleyen bir yazı tipi ayarlayın
-rcParams['font.family'] = 'Noto Sans Devanagari'  # Yazı tipini ayarlayın
-
-# Ekstra gereksiz kelimeler listesi
-# Ekstra gereksiz kelimeler listesi
-non_stop_words_combined = [
-    "yok", "bir", "ve", "ile", "bu", "da", "de", "için", "olarak", "gibi", 
-    "şu", "ama", "sadece", "bunu", "şey", "kadar", "her", "çok", "daha", 
-    "gerek", "merhaba", "hakkında", "nedir", "bölüm", "güncellenmesi", 
-    "bilgi", "ediyoruz", "yapılır", "geliştirilmesi", "uygulama", "süreç", 
-    "geliştirme", "proje", "çalışma", "yöntem", "örnek", "görmek", "şekilde", 
-    "yüzünden", "gözünden", "sorun", "çözüm", "kapsamında", "kapsam", "yeni", 
-    "eski", "güncel", "kullanım", "kullanılan", "kullanıcılar", "görüş", 
-    "konu", "yapmak", "olmak", "nasıl", "neden", "istek", "görüşler", "takip", 
-    "tamam", "almak", "düşünmek", "ben", "sen", "o", "biz", "sizin", "bizim", 
-    "sadece", "gibi", "yapmak", "konusundaki", "benim", "yardımcı", "bilgileri", 
-    "istediğiniz", "yine", "işlem", "istek", "geri", "tamamlamak", "geçerli", 
-    "tartışma", "yapılması", "yazılan", "konusunda", "hemen", "denemek", "iyi", 
-    "ne", "oldu", "olabilir", "sonuç", "işlem", "değerlendirmek", "yapıldı", 
-    "ilgili", "paylaşmak", "tüm", "bunu", "sayfa", "aşağıdaki", "üzerinde", 
-    "sistem", "özellik", "görüntüle", "tartışma", "yönlendirme", "toplantı", 
-    "bilgi", "daha fazla", "oluşan", "iletişim", "yardım", "tespit", "dönüş", 
-    "durum", "çalışma", "sorular", "açıklama", "öneriler", "kullanıcı", 
-    "dönüşüm", "tavsiye", "tartışmaya", "katılmak", "güncellenmiş", "yönlendirme", 
-    "çözüm", "duyuru", "açıklama", "sizinle", "kısa", "ilgilendirme", 
-    "değişiklik", "gerekli", "bilgisini", "şu anda", "yapılmak", "hatırlatmak", 
-    "belirtilen", "yardımcı olmak", "bildirim", "işlemler", "toplantıya", "özellikle", 
-    "isteyen", "başka", "başlamak", "içerik", "test", "tartışma", "tartışmak", 
-    "sonrası", "yakın", "yenilik", "şimdi", "bununla", "geliştirilmiştir", 
-    "gerçekleşen", "tartışılacak", "hesap", "yapılmış", "genel", "hazır", 
-    "yine", "özgün", "yeni başlayan", "ileri", "daha önce", "bilgisi", 
-    "yazılım", "eklemek", "yaklaşım", "şüpheli", "güvenli", "sistemi", 
-    "başka bir", "ekip", "farklı", "uygulama", "plan", "özellikler", 
-    "paylaşım", "herhangi", "öncelik", "yönetici", "akademik", "ekran", 
-    "bölüm", "geçmiş", "yönetim", "yardımcı", "tartışmaları", "yerine", 
-    "sistemler", "değişiklikler", "gönderilen", "devam", "kapsayan", 
-    "ağırlıklı", "kapsayan", "açık", "daha az", "daha çok", "ileti", 
-    "odak", "görüş", "öncelikli", "bildirilen", "herkes", "önümüzdeki", 
-    "bilgileri", "video", "link", "app", "tool", "people", "discuss",
-    "understanding", "techniques", "skills", "number", "way", "first", "used",
-    "different", "types", "everyone", "learned", "learn", "talk", "know",
-    "saw", "sawant", "piratesoftware", "ngobrol", "aswad", "joseph", "prasad",
-    "dell", "siber", "scam", "fraud", "index", "cyber", "electric", "protect",
-    "mit", "vmware", "ibm", "adobe", "fortinet", "apache", "cisco", "linux",
-    "hacking", "hackers", "security", "engineering", "wordpress", "comptia",
-    "phishing", "ngobrol", "ngobrol", "ngobrol", "güncellemesi", "eklenti", "bildirmi",
-    "watch", "güvenlik", "autocad", "instagram", "tenda", "microsoft", "gitlab",
-    "funny", "animated", "videos", "courses", "training"
-]
 def tarih_formatlayici(tarih_str):
     """Farklı formatlardaki tarihleri YYYY-MM-DD formatına çevirir"""
     try:
-        for format in ['%Y-%m-%d', '%Y/%m/%d', '%Y.%m.%d', '%Y-%m-%d']:
+        for format in ['%Y-%m-%d', '%Y/%m/%d', '%Y.%m.%d']:
             try:
                 tarih = datetime.strptime(tarih_str, format)
                 return tarih.strftime('%Y-%m-%d')
@@ -81,7 +38,6 @@ def tarih_formatlayici(tarih_str):
         return None
 
 def usom_veri_cek():
-    # Veri Çekme API: https://www.usom.gov.tr/api/incident/index?language=tr&url=https%3A%2F%2Fwww.usom.gov.tr%2Fbildirim
     """USOM verilerini API üzerinden çeker"""
     print("\n============= USOM API Veri Çekme Aracı =============")
     
@@ -178,10 +134,37 @@ def usom_veri_cek():
     except Exception as e:
         print(f"\nAPI Hatası: {e}")
         return pd.DataFrame()
+    
+def ollama_suzme(transcript, search_results):
+    """Uses the local Ollama model to filter the transcript, focusing on words outside the search results."""
+    url = "YOUR_OLLAMA_API_URL"  # Ollama API URL
+    headers = {
+        "Content-Type": "application/json"
+    }
+    
+    # Combine search results into a single text
+    search_results_text = " ".join(search_results)
+    
+    # Create the prompt for filtering
+    prompt = f"Filter the following text: {transcript}\n\nSearch results: {search_results_text}\n\nPlease filter out only the words that are not in the search results."
+    
+    data = {
+        "model": "mistral:latest",  # Specify the model you want to use
+        "prompt": prompt,
+        "max_tokens": 1000  # Desired maximum number of tokens
+    }
+    
+    response = requests.post(url, headers=headers, json=data)
+    
+    if response.status_code == 200:
+        return response.json().get("text", "")
+    else:
+        print(f"Ollama API error: {response.status_code}")
+        return transcript  # Return the original transcript in case of an error
 
 def youtube_veri_cek():
-    """YouTube'dan güvenlik videolarını çeker"""
-    api_key = "AIzaSyDBazr6iJ84ky5-r9MQ1fXnKmOE7OvM6gA"
+    """YouTube'dan video başlıkları, ID'leri ve transkriptlerini çeker"""
+    api_key = "YOUR_API_KEY"
     youtube = build('youtube', 'v3', developerKey=api_key)
     
     print("\nYouTube'da aranacak güvenlik konularını giriniz.")
@@ -193,164 +176,250 @@ def youtube_veri_cek():
         if not sorgu:
             break
         sorgular.append(sorgu)
+
+    while True:
+        try:
+            max_results = int(input("Çekilecek maksimum video sayısını girin (örneğin 10): "))
+            if max_results <= 0:
+                print("Lütfen pozitif bir sayı girin.")
+            else:
+                break
+        except ValueError:
+            print("Lütfen geçerli bir sayı girin.")
     
     tum_videolar = []
     for sorgu in sorgular:
         try:
             request = youtube.search().list(
                 part="snippet",
-                q=sorgu + " social engineering",
+                q=sorgu,
                 type="video",
                 order="viewCount",
-                maxResults=50
+                maxResults=max_results,
+                relevanceLanguage="tr",
             )
+            
             response = request.execute()
             
-            for item in response.get("items", []):
+            if 'items' not in response or not response['items']:
+                print(f"{sorgu} için sonuç bulunamadı.")
+                continue
+            
+            toplam_videolar = len(response['items'])
+            print(f"\n{sorgu} için {toplam_videolar} video bulundu, transkriptler çekiliyor...")
+            
+            for item in tqdm(response.get("items", []), desc="İşlenen videolar", unit="video"):
+                video_id = item['id']['videoId']
                 video_info = {
                     'baslik': item['snippet']['title'],
                     'aciklama': item['snippet']['description'],
-                    'kaynak': 'YouTube',
-                    'sorgu': sorgu
+                    'video_id': video_id,
+                    'yayin_tarihi': item['snippet']['publishedAt'],
+                    'kanal_adi': item['snippet']['channelTitle']
                 }
+                
+                # Video süresini kontrol et
+                video_details = youtube.videos().list(part="contentDetails", id=video_id).execute()
+                duration = video_details['items'][0]['contentDetails']['duration']
+                
+                # Sadece normal videoları al (60 saniyeden uzun)
+                if duration.startswith('PT') and 'M' in duration:
+                    minutes = int(duration.split('M')[0][2:])  # 'PT1M30S' gibi bir format
+                    seconds = int(duration.split('M')[1][:-1]) if 'S' in duration.split('M')[1] else 0
+                    total_seconds = minutes * 60 + seconds
+                    
+                    if total_seconds <= 60:  # 60 saniye veya daha kısa olan videoları atla
+                        print(f"Video {video_id} için Shorts videosu, atlanıyor.")
+                        continue
+                
+                # Transkript çekme denemesi
+                try:
+                    transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
+                    
+                    # Önce Türkçe transkript dene
+                    try:
+                        transcript = transcript_list.find_transcript(['tr'])
+                    except NoTranscriptFound:
+                        # Türkçe bulunamazsa, İngilizce dene
+                        try:
+                            transcript = transcript_list.find_transcript(['en'])
+                        except NoTranscriptFound:
+                            # Hiçbiri bulunamazsa, bu videoyu atla
+                            print(f"Video {video_id} için transkript bulunamadı, atlanıyor.")
+                            continue
+                    
+                    # Transkripti metin olarak birleştir
+                    video_info['transkript'] = " ".join([entry['text'] for entry in transcript.fetch()])
+                    
+                except (TranscriptsDisabled, NoTranscriptFound, Exception) as e:
+                    video_info['transkript'] = None
+                    print(f"Video {video_id} için transkript alınamadı: {str(e)}")
+                    continue  # Bu videoyu atla
+                
                 tum_videolar.append(video_info)
                 
         except Exception as e:
-            print(f"YouTube verisi çekilirken hata: {e}")
+            print(f"\nYouTube verisi çekilirken hata: {e}")
             continue
     
-    if not tum_videolar:
-        print("YouTube verisi çekilemedi!")
+    youtube_df = pd.DataFrame(tum_videolar)
     
-    return pd.DataFrame(tum_videolar)
-
-def veri_analiz(usom_df, youtube_df):
-    """USOM ve YouTube verilerini analiz eder"""
-    G = nx.Graph()
+    if youtube_df.empty:
+        print("\nHiç video verisi çekilemedi!")
+    else:
+        print(f"\nToplam {len(youtube_df)} video verisi çekildi.")
+        transkript_sayisi = youtube_df['transkript'].notna().sum()
+        print(f"Transkript alınan video sayısı: {transkript_sayisi}")
+        print(f"Transkript alınamayan video sayısı: {len(youtube_df) - transkript_sayisi}")
     
-    # Metinleri temizle ve kelimeleri çıkar
-    usom_kelimeler = []
-    for metin in usom_df['baslik'].str.cat(usom_df['aciklama'], sep=' '):
-        usom_kelimeler.extend(metin_temizle(metin))
-    
-    youtube_kelimeler = []
-    for metin in youtube_df['baslik'].str.cat(youtube_df['aciklama'], sep=' '):
-        youtube_kelimeler.extend(metin_temizle(metin))
-    
-    # Düğümleri ekle
-    for kelime in set(usom_kelimeler):
-        G.add_node(kelime, type='usom')
-    
-    for kelime in set(youtube_kelimeler):
-        G.add_node(kelime, type='youtube')
-    
-    # Kelimeleri birbirine bağla
-    tum_kelimeler = usom_kelimeler + youtube_kelimeler
-    kelime_frekanslari = Counter(tum_kelimeler)
-    
-    # En sık geçen kelimeleri bağla
-    for kelime1 in set(usom_kelimeler):
-        for kelime2 in set(youtube_kelimeler):
-            if kelime1 in kelime_frekanslari and kelime2 in kelime_frekanslari:
-                if kelime_frekanslari[kelime1] > 2 and kelime_frekanslari[kelime2] > 2:
-                    G.add_edge(kelime1, kelime2)
-    
-    return G, kelime_frekanslari
+    return youtube_df
 
 def metin_temizle(metin):
     """Metni temizler ve stop words'leri kaldırır"""
-    # Stop words listesi
     stop_words = set(stopwords.words('english') + stopwords.words('turkish'))
     
-    # Ekstra gereksiz kelimeleri ekleyin
-    stop_words.update(non_stop_words_combined)
-    
-    # Metni temizle
     metin = re.sub(r'[^\w\s]', ' ', str(metin).lower())
     kelimeler = word_tokenize(metin)
     temiz_kelimeler = [kelime for kelime in kelimeler if kelime not in stop_words and len(kelime) > 2]
     
     return temiz_kelimeler
+def veri_analiz(usom_df, youtube_df):
+    """USOM ve YouTube verilerini analiz eder"""
+    usom_kelimeler = []
+    youtube_kelimeler = []
+    
+    # USOM verilerini işle
+    if not usom_df.empty and all(col in usom_df.columns for col in ['baslik', 'aciklama']):
+        try:
+            metin_birlesik = usom_df['baslik'].fillna('') + ' ' + usom_df['aciklama'].fillna('')
+            for metin in metin_birlesik:
+                usom_kelimeler.extend(metin_temizle(metin))
+        except Exception as e:
+            print(f"USOM veri işleme hatası: {e}")
+    
+    # YouTube verilerini işle
+    if not youtube_df.empty:
+        if 'baslik' in youtube_df.columns:
+            for metin in youtube_df['baslik'].fillna(''):
+                youtube_kelimeler.extend(metin_temizle(metin))
+        
+        if 'transkript' in youtube_df.columns:
+            for metin in youtube_df['transkript'].fillna(''):
+                youtube_kelimeler.extend(metin_temizle(metin))
+    
+    return usom_kelimeler, youtube_kelimeler
 
-def gorselleştir(G, kelime_frekanslari):
+def gorselleştir(G, kelime_frekanslari, isim, usom_kelimeler, youtube_kelimeler):
     """Ağ ve kelime bulutu görselleştirmesi"""
-    # WordCloud oluşturma
-    wordcloud = WordCloud(
-        width=1600, 
-        height=800,
-        background_color='white',
-        min_font_size=10,
-        max_font_size=150,
-        prefer_horizontal=0.7
-    ).generate_from_frequencies(dict(kelime_frekanslari))
+    if not G.nodes() or not kelime_frekanslari:
+        print(f"{isim} için görselleştirme yapılamıyor - veri yok")
+        return
     
-    plt.figure(figsize=(20,10))
-    
-    plt.subplot(1, 2, 1)
-    plt.imshow(wordcloud, interpolation='bilinear')
-    plt.axis('off')
-    plt.title('Güvenlik Konuları Kelime Bulutu')
-    
-    plt.subplot(1, 2, 2)
-    pos = nx.spring_layout(G, k=1, iterations=50)
-    nx.draw(G, pos, 
-           node_color='lightblue',
-           node_size=[G.degree(node) * 100 for node in G.nodes()],
-           with_labels=True,
-           font_size=8,
-           edge_color='gray',
-           alpha=0.7)
-    plt.title('Güvenlik Konuları İlişki Ağı')
-    
-    plt.tight_layout()
-    plt.savefig('guvenlik_analizi.png', dpi=300, bbox_inches='tight')
-    plt.show()
-
+    try:
+        # Matplotlib figürünü oluştur
+        plt.figure(figsize=(20,10))
+        
+        # Kelime bulutu
+        plt.subplot(1, 2, 1)
+        wordcloud = WordCloud(
+            width=1600, 
+            height=800,
+            background_color='white',
+            min_font_size=10,
+            max_font_size=150,
+            prefer_horizontal=0.7
+        ).generate_from_frequencies(dict(kelime_frekanslari))
+        
+        plt.imshow(wordcloud, interpolation='bilinear')
+        plt.axis('off')
+        plt.title(f'{isim} Kelime Bulutu', pad=20)
+        
+        # Ortak analizde ilişki ağı oluştur
+        if isim == "Ortak":
+            ortak_kelimeler = set(G.nodes())
+            G_ortak = nx.Graph()
+            
+            for kelime1 in set(usom_kelimeler):
+                for kelime2 in set(youtube_kelimeler):
+                    if kelime1 in ortak_kelimeler and kelime2 in ortak_kelimeler:
+                        G_ortak.add_edge(kelime1, kelime2)
+            
+            # Ağ grafiği
+            plt.subplot(1, 2, 2)
+            pos = nx.spring_layout(G_ortak, k=1, iterations=50)
+            
+            # Node boyutlarını normalize et
+            max_degree = max(dict(G_ortak.degree()).values()) if G_ortak.nodes() else 1
+            node_sizes = [100 + (G_ortak.degree(node) * 500 / max_degree) for node in G_ortak.nodes()]
+            
+            nx.draw(G_ortak, pos,
+                   node_color='lightblue',
+                   node_size=node_sizes,
+                   with_labels=True,
+                   font_size=8,
+                   edge_color='gray',
+                   alpha=0.7)
+            
+            plt.title(f'{isim} İlişki Ağı', pad=20)
+        
+        plt.tight_layout()
+        
+        # Dosyaya kaydet ve göster
+        plt.savefig(f'{isim.lower()}_analizi.png', dpi=300, bbox_inches='tight')
+        plt.show()
+        plt.close()  # Belleği temizle
+        
+    except Exception as e:
+        print(f"{isim} görselleştirme hatası: {e}")
+        
 def main():
-    # USOM verilerini çek
-    print("USOM verileri çekiliyor...")
-    usom_df = usom_veri_cek()
-    
-    if usom_df.empty:
-        print("USOM verisi çekilemedi!")
-        return
-    
-    # YouTube verilerini çek
-    print("\nYouTube Veri Çekme")
-    youtube_df = youtube_veri_cek()
-    
-    if youtube_df.empty:
-        print("YouTube verisi çekilemedi!")
-        return
-    
-    # Verileri analiz et
-    print("\nVeriler analiz ediliyor...")
-    G, kelime_frekanslari = veri_analiz(usom_df, youtube_df)
-    
-    # İstatistikleri göster
-    print("\nAnaliz Sonuçları:")
-    print("-" * 60)
-    print(f"Toplam USOM kaydı: {len(usom_df)}")
-    print(f"Toplam YouTube videosu: {len(youtube_df)}")
-    print(f"Analiz edilen toplam düğüm sayısı: {G.number_of_nodes()}")
-    print(f"Bulunan ilişki sayısı: {G.number_of_edges()}")
-    
-    # En önemli konuları göster
-    print("\nEn Sık Geçen Güvenlik Konuları:")
-    print("-" * 60)
-    for kelime, freq in kelime_frekanslari.most_common(10):
-        print(f"{kelime}: {freq} kez")
-    
-    # Görselleştir
-    print("\nGörselleştirmeler oluşturuluyor...")
-    gorselleştir(G, kelime_frekanslari)
-    
-    # Verileri kaydet
-    zaman_damgasi = pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')
-    usom_df.to_csv(f'usom_zafiyetler_{zaman_damgasi}.csv', index=False, encoding='utf-8')
-    youtube_df.to_csv(f'youtube_veriler_{zaman_damgasi}.csv', index=False, encoding='utf-8')
-    print(f"\nVeriler CSV dosyalarına kaydedildi.")
-    print(f"Görselleştirmeler 'guvenlik_analizi.png' dosyasına kaydedildi.")
+    try:
+        # USOM verilerini çek
+        print("USOM verileri çekiliyor...")
+        usom_df = usom_veri_cek()
+        
+        if usom_df.empty:
+            print("USOM verisi çekilemedi!")
+            return
+        
+        # YouTube verilerini çek
+        print("\nYouTube Veri Çekme")
+        youtube_df = youtube_veri_cek()
+        
+        if youtube_df.empty:
+            print("YouTube verisi çekilemedi!")
+            return
+        
+        # USOM ve YouTube verilerini analiz et
+        print("\nUSOM ve YouTube Verileri analiz ediliyor...")
+        usom_kelimeler, youtube_kelimeler = veri_analiz(usom_df, youtube_df)
+        
+        # Ortak verileri analiz et
+        print("\nOrtak Veriler analiz ediliyor...")
+        ortak_kelimeler = set(usom_kelimeler) & set(youtube_kelimeler)
+        
+        # Ortak kelimeler için ilişki ağı oluştur
+        G_ortak = nx.Graph()
+        for kelime in ortak_kelimeler:
+            G_ortak.add_node(kelime)
+        
+        # Ortak kelimeler arasındaki ilişkiyi ekleyin
+        for kelime1 in usom_kelimeler:
+            for kelime2 in youtube_kelimeler:
+                if kelime1 in ortak_kelimeler and kelime2 in ortak_kelimeler:
+                    G_ortak.add_edge(kelime1, kelime2)
+        
+        # Görselleştir
+        gorselleştir(G_ortak, Counter(ortak_kelimeler), "Ortak", usom_kelimeler, youtube_kelimeler)
+        
+        # Verileri kaydet
+        zaman_damgasi = pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')
+        usom_df.to_csv(f'usom_zafiyetler_{zaman_damgasi}.csv', index=False, encoding='utf-8')
+        youtube_df.to_csv(f'youtube_veriler_{zaman_damgasi}.csv', index=False, encoding='utf-8')
+        print(f"\nVeriler CSV dosyalarına kaydedildi.")
+        
+    except Exception as e:
+        print(f"Program çalışırken hata oluştu: {e}")
 
 if __name__ == "__main__":
     main()
